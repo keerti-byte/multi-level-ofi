@@ -27,7 +27,7 @@ not benefit from depth (R^2 falls from 0.0176 at level 1 to 0.0155 at level 10 a
 **Limitations:** a single stock and a single test day; seeds vary only training randomness, not the data; all runs
 used the 8-epoch cap, so training may not have converged. Treat this as a first result, not a general finding.
 
-## Pipeline## Pipeline
+## Pipeline
 
 ```
 download_itch.py   NASDAQ ITCH 5.0 .gz  (emi.nasdaq.com)  ->  itch_raw/
