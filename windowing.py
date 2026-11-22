@@ -91,6 +91,19 @@ def split_days(n_days: int):
     return ids[:n_train], ids[n_train:n_train + n_val], ids[n_train + n_val:]
 
 
+def split_days_loo(n_days: int, test_day: int):
+    """Leave-one-day-out: test = day `test_day` (1-based); validation = the previous day (the next day
+    if test_day is 1); train = every other day. test_day = n_days reproduces the default split for 5 days.
+    NOTE: for early test days the model trains on LATER days (blocked cross-validation, not walk-forward)."""
+    if n_days < 3:
+        raise ValueError("leave-one-day-out needs at least 3 days")
+    if not 1 <= test_day <= n_days:
+        raise ValueError(f"--test-day must be between 1 and {n_days}")
+    t = test_day - 1
+    v = t - 1 if t > 0 else 1
+    return [i for i in range(n_days) if i not in (t, v)], [v], [t]
+
+
 def split_rows(days: List[dict], fracs=(0.7, 0.1, 0.2)):
     """<3 days: chronological row split of each day into isolated train/val/test segments."""
     tr, va, te = [], [], []
@@ -102,7 +115,13 @@ def split_rows(days: List[dict], fracs=(0.7, 0.1, 0.2)):
     return tr, va, te
 
 
-def make_splits(days: List[dict]):
+def make_splits(days: List[dict], test_day: int = None):
+    if test_day is not None:
+        a, b, c = split_days_loo(len(days), test_day)
+        pick = lambda ids: [days[i] for i in ids]
+        names = lambda ids: ",".join(f"day_{i + 1}" for i in ids)
+        return (pick(a), pick(b), pick(c),
+                f"leave-one-day-out: test {names(c)} | val {names(b)} | train {names(a)}")
     if len(days) >= 3:
         a, b, c = split_days(len(days))
         pick = lambda ids: [days[i] for i in ids]

@@ -8,22 +8,26 @@ trained on level-1 OFI against one trained on levels 1-5, at 10 / 20 / 50-tick h
 ## Preliminary results
 
 AAPL, five NASDAQ sample days (2019-01-30, 03-27, 07-30, 10-30, 12-30), chronological whole-day split:
-train = first three days, validation = 10-30, **test = 12-30 only**. Out-of-sample R^2 on the test day,
-LSTM (32 units), mean over 3 training seeds:
+train = first three days, validation = 10-30, **test = 12-30 only**. Out-of-sample R^2 on the test day for an LSTM
+(32 units) using OFI from the first K book levels (seed 1; epochs capped at 8, every 10th window used for training):
 
 | OFI levels | 10-tick | 20-tick | 50-tick |
 |---|---|---|---|
-| 1 | 0.0597 | 0.0585 | 0.0509 |
-| 1-5 | 0.0956 | 0.0911 | 0.0705 |
-| gain (std over seeds) | +0.0359 (0.0024) | +0.0326 (0.0021) | +0.0197 (0.0014) |
+| 1 | 0.0600 | 0.0588 | 0.0512 |
+| 2 | 0.0848 | 0.0804 | 0.0637 |
+| 3 | 0.0919 | 0.0884 | 0.0688 |
+| 5 | 0.0962 | 0.0919 | 0.0724 |
+| 10 | 0.0963 | 0.0920 | 0.0723 |
 
-The gain was positive in all 3 seeds at every horizon. A linear baseline (OLS on window-summed OFI) shows no
-such gain (-0.002). Training used every 10th window (`--train-stride 10`); the test set is never subsampled.
+Levels 2 and 3 capture roughly 60-68% and 84-89% of the total gain over level 1; **the gain saturates around five
+levels** and ten adds nothing. With 3 seeds (levels 1 vs 5) the gain was +0.0359 / +0.0326 / +0.0197 R^2 (std over
+seeds 0.002 or less) and positive in every seed at every horizon. A linear baseline (OLS on window-summed OFI) does
+not benefit from depth (R^2 falls from 0.0176 at level 1 to 0.0155 at level 10 at the 10-tick horizon).
 
-**Limitations:** a single stock, a single test day, and seeds vary only training randomness, not the data.
-Treat this as a first result, not a general finding; see "Next steps".
+**Limitations:** a single stock and a single test day; seeds vary only training randomness, not the data; all runs
+used the 8-epoch cap, so training may not have converged. Treat this as a first result, not a general finding.
 
-## Pipeline
+## Pipeline## Pipeline
 
 ```
 download_itch.py   NASDAQ ITCH 5.0 .gz  (emi.nasdaq.com)  ->  itch_raw/
@@ -59,6 +63,13 @@ for s in 1 2 3; do
       --train-stride 10 --val-stride 10 --seed $s --out results_$s.json
 done
 python summarize_results.py
+
+# does it hold on other test days? (leave-one-day-out; --test-day K makes day_K the unseen test day)
+for d in 1 2 3 4; do
+  python train.py --data-dir data --levels-sweep 1,5 --epochs 8 --batch-size 1024 \
+      --train-stride 10 --val-stride 10 --seed 1 --test-day $d --out results_day$d.json
+done
+python summarize_results.py results_day*.json
 ```
 Quick smoke test without any real data: `python make_synthetic_days.py --out-dir data_synth` then
 `python train.py --data-dir data_synth --levels-sweep 1,5 --epochs 1 --max-rows 8000`.
@@ -84,6 +95,6 @@ The raw ITCH files come from NASDAQ's public sample server and are **not include
 (they are several GB each). Check NASDAQ's terms before redistributing any data derived from them.
 
 ## Next steps
-- Test on more days (walk-forward / leave-one-day-out) and on other stocks.
-- Sweep depth (levels 1, 2, 3, 5, 10) to see where the gain saturates.
+- Test on other days (leave-one-day-out via `--test-day`; note early test days train on later days) and other stocks.
+- Longer training (epochs > 8) to check the level ranking holds once converged.
 - Stronger baselines (e.g. a small MLP on window-summed OFI) to separate "nonlinearity" from "depth".

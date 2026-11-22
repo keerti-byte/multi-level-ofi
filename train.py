@@ -42,7 +42,7 @@ def linear_baseline(ds_tr, ds_te, y_std, y_mean):
 
 def run_one(days, k, args, horizons):
     sub = [{"features": d["features"][:, :k], "targets": d["targets"]} for d in days]
-    tr, va, te, desc = make_splits(sub)
+    tr, va, te, desc = make_splits(sub, args.test_day)
     print(f"\n=== n_levels={k} | {desc}")
     sc = Scaler(clip=args.clip).fit(tr)
     max_h = max(horizons)
@@ -112,6 +112,8 @@ def main():
     ap.add_argument("--lstm-units", type=int, default=32)
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--clip", type=float, default=10.0, help="clip z-scored OFI at +/-clip (0 = off)")
+    ap.add_argument("--test-day", type=int, default=None,
+                    help="leave-one-day-out: use day_K as the test day (1-based). Default: last day is the test day")
     ap.add_argument("--train-stride", type=int, default=1, help="LSTM trains on every Nth window (windows overlap ~fully; 5-10 is ~N x faster)")
     ap.add_argument("--val-stride", type=int, default=1, help="same for the validation set (test set is never subsampled)")
     ap.add_argument("--max-rows", type=int, default=None, help="read only first N rows of each day (quick tests)")

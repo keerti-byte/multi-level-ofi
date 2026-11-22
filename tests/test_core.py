@@ -112,3 +112,16 @@ def test_stride_subsamples_windows_but_keeps_validity():
     assert np.array_equal(st.idx, full.idx[::7]) and len(st) < len(full)
     X, y = st.batch(np.arange(len(st)))
     assert X.shape == (len(st), L, 2) and np.isfinite(y).all()
+
+
+def test_leave_one_day_out_split():
+    from windowing import split_days_loo
+    assert split_days_loo(5, 5) == split_days(5)                    # same as the default split
+    assert split_days_loo(5, 1) == ([2, 3, 4], [1], [0])             # val = next day when test is day 1
+    assert split_days_loo(5, 3) == ([0, 3, 4], [1], [2])
+    for n, k in [(5, 0), (5, 6), (2, 1)]:
+        with pytest.raises(ValueError):
+            split_days_loo(n, k)
+    days = [_seg(40, base=100 * i) for i in range(5)]
+    tr, va, te, desc = make_splits(days, test_day=2)
+    assert len(tr) == 3 and len(va) == len(te) == 1 and "test day_2" in desc and "val day_1" in desc
