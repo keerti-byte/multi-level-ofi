@@ -1,0 +1,4 @@
+numpy
+pandas
+torch          # PyTorch backend (works on Python 3.14); or: tensorflow>=2.16 on Python <= 3.12
+pytest

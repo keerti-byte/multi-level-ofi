@@ -1,0 +1,19 @@
+# ---- data (huge; never commit) ----
+itch_raw/
+data/
+data_synth/
+*.gz
+*.part
+*.csv
+
+# ---- build output / environments ----
+/itch2lobster
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# ---- logs ----
+*.log
+nohup.out
