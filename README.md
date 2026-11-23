@@ -44,11 +44,32 @@ The gain is positive on every test day at every horizon, but its size varies by 
 extra test days: 0.037 at 10 ticks with a day-to-day std of about 0.02). The linear baseline has essentially no skill
 on those four days (R^2 about 0 at both level 1 and level 5).
 
+### What does the LSTM add? (baselines)
+
+Five-day mean out-of-sample R^2 (each day as the unseen test day), OFI levels 1 -> 5. LSTM numbers are the four
+leave-one-day-out runs plus the earlier 2019-12-30 run (same settings, seed 1). `MLP-sum` is a small feed-forward
+net (64-32 hidden units) on OFI summed over the last 50 ticks only; `MLP-multi` also gets sums over the last
+20 / 10 / 5 / 2 ticks (`--baseline-mlp --mlp-scales 50,20,10,5,2`). Neither MLP sees tick-by-tick order.
+
+| Model | 10-tick | 20-tick | 50-tick |
+|---|---|---|---|
+| Linear (window-summed OFI) | 0.001 -> 0.003 | 0.000 -> 0.002 | -0.008 -> -0.008 |
+| MLP-sum (one 50-tick sum) | 0.016 -> 0.015 | 0.018 -> 0.019 | 0.016 -> 0.011 |
+| MLP-multi (five time scales) | 0.036 -> 0.049 | 0.034 -> 0.050 | 0.023 -> 0.030 |
+| LSTM (50-tick sequence) | 0.041 -> 0.069 | 0.044 -> 0.069 | 0.030 -> 0.044 |
+
+- A single window sum gives the MLP little skill and **no gain from depth**; allowing nonlinearity alone is not enough.
+- Giving the MLP several recent time scales roughly triples its R^2, and depth then helps on **every** test day at every
+  horizon (+0.013 / +0.016 / +0.008). So much of the signal is *how recent* the order flow is.
+- At 5 levels MLP-multi reaches about 70% of the LSTM's R^2 (about 80% at level 1) and recovers about half of its
+  gain from depth. The LSTM keeps a moderate extra edge that these few hand-picked time scales do not capture.
+  The MLP scales were not tuned and the LSTM was capped at 8 epochs, so the size of that remaining gap is uncertain.
+
 **Limitations:** a single stock; one training seed per test day; all runs used the 8-epoch cap, so training may not
 have converged; early test days train on later days (blocked cross-validation, not walk-forward). Treat this as a
 first result, not a general finding.
 
-## Pipeline
+## Pipeline## Pipeline
 
 ```
 download_itch.py   NASDAQ ITCH 5.0 .gz  (emi.nasdaq.com)  ->  itch_raw/
@@ -126,5 +147,5 @@ The raw ITCH files come from NASDAQ's public sample server and are **not include
 ## Next steps
 - Test on other days (leave-one-day-out via `--test-day`; note early test days train on later days) and other stocks.
 - Longer training (epochs > 8) to check the level ranking holds once converged.
-- Compare the LSTM with the MLP baseline per test day (`--baseline-mlp`) to see whether sequence order matters.
+- Tune/extend the MLP baseline (more time scales, more epochs) and train the LSTM longer, to pin down how much the LSTM really adds.
 - Other stocks (`itch2lobster --symbol`) to check the result is not Apple-specific.

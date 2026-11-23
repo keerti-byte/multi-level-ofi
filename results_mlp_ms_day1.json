@@ -1,0 +1,72 @@
+{
+  "args": {
+    "data_dir": "data",
+    "day_pattern": "day_{}.csv",
+    "n_levels": 5,
+    "levels_sweep": "1,5",
+    "horizons": [
+      10,
+      20,
+      50
+    ],
+    "lookback": 50,
+    "epochs": 10,
+    "batch_size": 512,
+    "lstm_units": 32,
+    "lr": 0.001,
+    "clip": 10.0,
+    "test_day": 1,
+    "train_stride": 10,
+    "val_stride": 10,
+    "max_rows": null,
+    "backend": "auto",
+    "baseline_mlp": true,
+    "mlp_scales": "50,20,10,5,2",
+    "mlp_epochs": 30,
+    "skip_lstm": true,
+    "seed": 1,
+    "out": "results_mlp_ms_day1.json"
+  },
+  "results": [
+    {
+      "n_levels": 1,
+      "samples": [
+        341077,
+        195384,
+        1586425
+      ],
+      "linear_r2": [
+        -0.04165363248062004,
+        -0.04980159897890113,
+        -0.06298430231888874
+      ],
+      "mlp_r2": [
+        0.0022701621055603027,
+        -0.0058939456939697266,
+        -0.007248640060424805
+      ],
+      "mlp_epochs_run": 23,
+      "mlp_minutes": 0.5542408347129821
+    },
+    {
+      "n_levels": 5,
+      "samples": [
+        341077,
+        195384,
+        1586425
+      ],
+      "linear_r2": [
+        -0.038341981070557196,
+        -0.04682937526759279,
+        -0.062358285161320914
+      ],
+      "mlp_r2": [
+        0.007939338684082031,
+        0.01886451244354248,
+        0.004824221134185791
+      ],
+      "mlp_epochs_run": 24,
+      "mlp_minutes": 0.5717240532239278
+    }
+  ]
+}
