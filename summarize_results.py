@@ -23,7 +23,7 @@ for f in files:
 
 horizons = runs[0]["horizons"]
 levels = sorted(runs[0]["res"])
-for key, label in (("lstm_r2", "LSTM"), ("linear_r2", "Linear baseline")):
+for key, label in (("lstm_r2", "LSTM"), ("mlp_r2", "MLP baseline (window-summed OFI)"), ("linear_r2", "Linear baseline")):
     if not all(key in r["res"][lv] for r in runs for lv in levels):
         continue
     print(f"\n=== {label}: out-of-sample R^2 (test day), {len(runs)} run(s) ===")

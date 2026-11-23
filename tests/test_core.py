@@ -125,3 +125,48 @@ def test_leave_one_day_out_split():
     days = [_seg(40, base=100 * i) for i in range(5)]
     tr, va, te, desc = make_splits(days, test_day=2)
     assert len(tr) == 3 and len(va) == len(te) == 1 and "test day_2" in desc and "val day_1" in desc
+
+
+def test_window_sums_scales_match_manual_sums():
+    segs = [_seg(30, nf=3), _seg(25, nf=3, base=500)]
+    ds = WindowDataset(segs, 8, 4)
+    for sc in (1, 3, 8):
+        ws = ds.window_sums(sc)
+        for pos in (0, 5, len(ds) - 1):
+            t = ds.idx[pos]
+            assert np.allclose(ws[pos], ds.F[t - sc + 1: t + 1].sum(axis=0))
+    assert np.allclose(ds.window_sums(), ds.window_sums(8))
+    with pytest.raises(ValueError):
+        ds.window_sums(9)
+
+
+def test_mlp_gradients_match_finite_differences():
+    from mlp_baseline import MLP
+    rng = np.random.default_rng(0)
+    net = MLP(4, (6, 5), 3, seed=1, dtype=np.float64)
+    X, y = rng.normal(size=(7, 4)), rng.normal(size=(7, 3))
+    out, acts = net.forward(X, cache=True)
+    gW, gb = net.backward(acts, y)
+    loss = lambda: ((net.forward(X) - y) ** 2).mean()
+    for params, grads in ((net.W, gW), (net.b, gb)):
+        for p, g in zip(params, grads):
+            it = np.nditer(p, flags=["multi_index"])
+            for _ in range(min(6, p.size)):
+                i = it.multi_index; old = p[i]
+                p[i] = old + 1e-6; up = loss(); p[i] = old - 1e-6; dn = loss(); p[i] = old
+                assert abs((up - dn) / 2e-6 - g[i]) < 1e-6
+                it.iternext()
+
+
+def test_mlp_learns_nonlinear_relation_that_linear_cannot():
+    from mlp_baseline import fit_predict_mlp
+    from train import r2_score
+    rng = np.random.default_rng(3)
+    X = rng.normal(size=(12000, 2)).astype(np.float32)
+    y = (X[:, :1] * X[:, 1:]).astype(np.float32)                    # y = x1 * x2 (zero linear correlation)
+    tr, va, te = slice(0, 8000), slice(8000, 9500), slice(9500, 12000)
+    pred, _ = fit_predict_mlp(X[tr], y[tr], X[va], y[va], X[te], lr=3e-3, batch_size=256, epochs=40, verbose=False)
+    r2_mlp = r2_score(y[te], pred)[0]
+    beta, *_ = np.linalg.lstsq(np.hstack([X[tr], np.ones((8000, 1), np.float32)]), y[tr], rcond=None)
+    r2_lin = r2_score(y[te], np.hstack([X[te], np.ones((2500, 1), np.float32)]) @ beta)[0]
+    assert r2_mlp > 0.5 and r2_lin < 0.05

@@ -17,6 +17,7 @@ import time
 import numpy as np
 
 from data_pipeline import load_all_days
+from mlp_baseline import fit_predict_mlp
 from windowing import Scaler, WindowDataset, make_splits
 
 
@@ -59,6 +60,17 @@ def run_one(days, k, args, horizons):
     out = {"n_levels": k, "samples": [len(ds_tr), len(ds_va), len(ds_te)]}
     out["linear_r2"] = linear_baseline(ds_tr_full, ds_te, sc.y_std, sc.y_mean).tolist()
     print("  linear baseline R^2:", "  ".join(f"{h}t={r:.5f}" for h, r in zip(horizons, out["linear_r2"])))
+
+    if args.baseline_mlp:
+        scales = [int(x) for x in args.mlp_scales.split(",")]
+        feats = lambda ds: np.hstack([ds.window_sums(sc_) for sc_ in scales]).astype(np.float32)
+        t1 = time.time()
+        pred, ep_run = fit_predict_mlp(feats(ds_tr), ds_tr.all_targets(), feats(ds_va), ds_va.all_targets(),
+                                       feats(ds_te), lr=args.lr, batch_size=args.batch_size,
+                                       epochs=args.mlp_epochs, seed=args.seed)
+        out["mlp_r2"] = r2_score(ds_te.all_targets(), pred).tolist()
+        out["mlp_epochs_run"], out["mlp_minutes"] = ep_run, (time.time() - t1) / 60
+        print("  MLP baseline R^2:   ", "  ".join(f"{h}t={r:.5f}" for h, r in zip(horizons, out["mlp_r2"])))
 
     if args.skip_lstm:
         return out
@@ -119,6 +131,10 @@ def main():
     ap.add_argument("--max-rows", type=int, default=None, help="read only first N rows of each day (quick tests)")
     ap.add_argument("--backend", choices=["auto", "torch", "tf"], default="auto",
                     help="auto = PyTorch if installed, else TensorFlow (TF has no Python 3.14 wheels)")
+    ap.add_argument("--baseline-mlp", action="store_true",
+                    help="also train a small MLP on window-summed OFI (nonlinear, no sequence order)")
+    ap.add_argument("--mlp-scales", default="50", help="comma list of trailing-window sizes to sum OFI over, each <= --lookback")
+    ap.add_argument("--mlp-epochs", type=int, default=30)
     ap.add_argument("--skip-lstm", action="store_true", help="linear baseline only (no TensorFlow needed)")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--out", default="results.json")
@@ -131,15 +147,21 @@ def main():
 
     results = [run_one(days, k, args, args.horizons) for k in levels]
 
-    key = "lstm_r2" if not args.skip_lstm else "linear_r2"
-    print(f"\n{'levels':<8}" + "".join(f"{str(h) + '-tick':>12}" for h in args.horizons) + f"   ({key})")
-    for r in results:
-        print(f"{r['n_levels']:<8}" + "".join(f"{v:>12.5f}" for v in r[key]))
-    if len(results) > 1:
-        base = results[0]
-        for r in results[1:]:
-            d = np.array(r[key]) - np.array(base[key])
-            print(f"gain L{r['n_levels']} vs L{base['n_levels']}: " + "  ".join(f"{x:+.5f}" for x in d))
+    def table(key, label):
+        print(f"\n{'levels':<8}" + "".join(f"{str(h) + '-tick':>12}" for h in args.horizons) + f"   ({label})")
+        for r in results:
+            print(f"{r['n_levels']:<8}" + "".join(f"{v:>12.5f}" for v in r[key]))
+        if len(results) > 1:
+            base = results[0]
+            for r in results[1:]:
+                d = np.array(r[key]) - np.array(base[key])
+                print(f"gain L{r['n_levels']} vs L{base['n_levels']}: " + "  ".join(f"{x:+.5f}" for x in d))
+
+    if not args.skip_lstm:
+        table("lstm_r2", "LSTM")
+    if args.baseline_mlp:
+        table("mlp_r2", "MLP on window-summed OFI")
+    table("linear_r2", "linear baseline")
     with open(args.out, "w") as f:
         json.dump({"args": vars(args), "results": results}, f, indent=2)
     print(f"\nSaved {args.out}")

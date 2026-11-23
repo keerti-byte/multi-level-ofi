@@ -24,8 +24,29 @@ levels** and ten adds nothing. With 3 seeds (levels 1 vs 5) the gain was +0.0359
 seeds 0.002 or less) and positive in every seed at every horizon. A linear baseline (OLS on window-summed OFI) does
 not benefit from depth (R^2 falls from 0.0176 at level 1 to 0.0155 at level 10 at the 10-tick horizon).
 
-**Limitations:** a single stock and a single test day; seeds vary only training randomness, not the data; all runs
-used the 8-epoch cap, so training may not have converged. Treat this as a first result, not a general finding.
+### Does it hold on other days? (leave-one-day-out)
+
+Same setup (levels 1 vs 5, seed 1), with each day in turn as the unseen test day (`--test-day K`; the validation day
+is the previous day, and the model trains on the remaining days, which for early test days includes later days).
+Gain in out-of-sample R^2 of 5 levels over 1 level, LSTM:
+
+| Test day | 10-tick | 20-tick | 50-tick |
+|---|---|---|---|
+| 2019-01-30 | +0.018 | +0.020 | +0.013 |
+| 2019-03-27 | +0.035 | +0.032 | +0.023 |
+| 2019-07-30 | +0.031 | +0.021 | +0.000 |
+| 2019-10-30 | +0.021 | +0.019 | +0.016 |
+| 2019-12-30 | +0.036 | +0.033 | +0.021 |
+| **mean** | **+0.028** | **+0.025** | **+0.014** |
+
+The gain is positive on every test day at every horizon, but its size varies by day and fades with the horizon
+(about zero at 50 ticks on 2019-07-30). Absolute R^2 also varies a lot between days (mean level-1 R^2 over the four
+extra test days: 0.037 at 10 ticks with a day-to-day std of about 0.02). The linear baseline has essentially no skill
+on those four days (R^2 about 0 at both level 1 and level 5).
+
+**Limitations:** a single stock; one training seed per test day; all runs used the 8-epoch cap, so training may not
+have converged; early test days train on later days (blocked cross-validation, not walk-forward). Treat this as a
+first result, not a general finding.
 
 ## Pipeline
 
@@ -35,7 +56,8 @@ itch2lobster.cpp   fast C++ single-symbol ITCH -> LOBSTER-format order book
 build_days.py      runs the reconstructor per day          ->  data/day_N.csv + manifest.json
 validate_days.py   format / price scale / crossed books / duplicate-day checks
 train.py           OFI -> windows -> LSTM (+ linear baseline), level sweep, R^2 table
-summarize_results.py   mean/std of R^2 and of the level-5-vs-level-1 gain across seeds
+mlp_baseline.py    NumPy MLP on window-summed OFI (nonlinear, no sequence order) - baseline for the LSTM
+summarize_results.py   mean/std of R^2 and of the level-5-vs-level-1 gain across runs (seeds or test days)
 ```
 Modules: `ofi.py` (OFI per level) | `data_pipeline.py` (load, drop, OFI, targets) |
 `windowing.py` (day-safe windows, scaler, splits) | `model_torch.py` / `model.py` (PyTorch / TensorFlow LSTM) |
@@ -70,6 +92,13 @@ for d in 1 2 3 4; do
       --train-stride 10 --val-stride 10 --seed 1 --test-day $d --out results_day$d.json
 done
 python summarize_results.py results_day*.json
+
+# is the LSTM's edge from sequence structure or just nonlinearity? (MLP sees only window-summed OFI; no LSTM needed, fast)
+for d in 1 2 3 4 5; do
+  python train.py --data-dir data --levels-sweep 1,5 --skip-lstm --baseline-mlp \
+      --train-stride 10 --val-stride 10 --seed 1 --test-day $d --out results_mlp_day$d.json
+done
+python summarize_results.py results_mlp_day*.json
 ```
 Quick smoke test without any real data: `python make_synthetic_days.py --out-dir data_synth` then
 `python train.py --data-dir data_synth --levels-sweep 1,5 --epochs 1 --max-rows 8000`.
@@ -97,4 +126,5 @@ The raw ITCH files come from NASDAQ's public sample server and are **not include
 ## Next steps
 - Test on other days (leave-one-day-out via `--test-day`; note early test days train on later days) and other stocks.
 - Longer training (epochs > 8) to check the level ranking holds once converged.
-- Stronger baselines (e.g. a small MLP on window-summed OFI) to separate "nonlinearity" from "depth".
+- Compare the LSTM with the MLP baseline per test day (`--baseline-mlp`) to see whether sequence order matters.
+- Other stocks (`itch2lobster --symbol`) to check the result is not Apple-specific.

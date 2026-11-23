@@ -45,11 +45,15 @@ class WindowDataset:
     def all_targets(self) -> np.ndarray:
         return self.Y[self.idx]
 
-    def window_sums(self) -> np.ndarray:
-        """Sum of features over each sample's lookback window (for the linear baseline)."""
-        cs = np.concatenate([np.zeros((1, self.F.shape[1])), np.cumsum(self.F.astype(np.float64), axis=0)])
+    def window_sums(self, scale: int = None) -> np.ndarray:
+        """Sum of features over the last `scale` ticks (default: the whole lookback) of each sample."""
+        L = scale or self.lookback
+        if not 1 <= L <= self.lookback:
+            raise ValueError(f"scale must be between 1 and the lookback ({self.lookback})")
+        if getattr(self, "_cs", None) is None:
+            self._cs = np.concatenate([np.zeros((1, self.F.shape[1])), np.cumsum(self.F.astype(np.float64), axis=0)])
         t = self.idx
-        return cs[t + 1] - cs[t + 1 - self.lookback]
+        return self._cs[t + 1] - self._cs[t + 1 - L]
 
 
 class Scaler:
