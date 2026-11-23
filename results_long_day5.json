@@ -1,0 +1,76 @@
+{
+  "args": {
+    "data_dir": "data",
+    "day_pattern": "day_{}.csv",
+    "n_levels": 5,
+    "levels_sweep": "1,5",
+    "horizons": [
+      10,
+      20,
+      50
+    ],
+    "lookback": 50,
+    "epochs": 20,
+    "batch_size": 1024,
+    "lstm_units": 32,
+    "lr": 0.001,
+    "clip": 10.0,
+    "test_day": 5,
+    "train_stride": 10,
+    "val_stride": 10,
+    "max_rows": null,
+    "backend": "auto",
+    "baseline_mlp": false,
+    "mlp_scales": "50",
+    "mlp_epochs": 30,
+    "skip_lstm": false,
+    "seed": 1,
+    "out": "results_long_day5.json"
+  },
+  "results": [
+    {
+      "n_levels": 1,
+      "samples": [
+        474664,
+        72725,
+        1477142
+      ],
+      "linear_r2": [
+        0.017616485179500097,
+        0.012408771970435772,
+        0.013980207269694067
+      ],
+      "lstm_r2": [
+        0.05995863676071167,
+        0.058783113956451416,
+        0.05119699239730835
+      ],
+      "epochs_run": 8,
+      "best_val_loss": 2.1164729595184326,
+      "minutes": 7.1941674987475075,
+      "backend": "torch"
+    },
+    {
+      "n_levels": 5,
+      "samples": [
+        474664,
+        72725,
+        1477142
+      ],
+      "linear_r2": [
+        0.015811981837024813,
+        0.010108812638342735,
+        0.012210594235852246
+      ],
+      "lstm_r2": [
+        0.103107750415802,
+        0.09705895185470581,
+        0.0756540298461914
+      ],
+      "epochs_run": 20,
+      "best_val_loss": 2.0782454013824463,
+      "minutes": 20.08637193044027,
+      "backend": "torch"
+    }
+  ]
+}
