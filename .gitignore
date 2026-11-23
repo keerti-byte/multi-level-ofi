@@ -17,3 +17,7 @@ __pycache__/
 # ---- logs ----
 *.log
 nohup.out
+github
+.env
+*.token
+.git-credentials
