@@ -69,7 +69,7 @@ net (64-32 hidden units) on OFI summed over the last 50 ticks only; `MLP-multi` 
 have converged; early test days train on later days (blocked cross-validation, not walk-forward). Treat this as a
 first result, not a general finding.
 
-## Pipeline## Pipeline
+## Pipeline
 
 ```
 download_itch.py   NASDAQ ITCH 5.0 .gz  (emi.nasdaq.com)  ->  itch_raw/
